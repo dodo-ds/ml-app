@@ -34,11 +34,10 @@ with col:
 
 if run and canvas_result.image_data is not None:
     gray = cv2.cvtColor(canvas_result.image_data, cv2.COLOR_RGBA2GRAY)
-    print(gray)
+    white_pixel_ratio = np.sum(gray == 255) / gray.size
+    if white_pixel_ratio > 0.99:
+        st.stop()
     gray = 255 - gray
-    if np.sum(gray == 255) / gray.size > 0.5:
-        st.rerun()
-
     contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     largest_contour = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(largest_contour)
