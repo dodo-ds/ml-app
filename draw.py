@@ -23,7 +23,7 @@ with col:
     canvas_result = st_canvas(
         stroke_width=10,
         stroke_color="#000000",
-        background_color="#eee",
+        background_color="#FFFFFF",
         display_toolbar=True,
         height=252,
         width=252,
@@ -34,27 +34,22 @@ with col:
 
 if run and canvas_result.image_data is not None:
     gray = cv2.cvtColor(canvas_result.image_data, cv2.COLOR_RGBA2GRAY)
-    _, tresh_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    if np.sum(tresh_img == 255) / tresh_img.size > 0.5:
+    print(gray)
+    gray = 255 - gray
+    if np.sum(gray == 255) / gray.size > 0.5:
         st.rerun()
 
-    contours, _ = cv2.findContours(tresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     largest_contour = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(largest_contour)
-    tresh_img = tresh_img[y : y + h, x : x + w]
     gray = gray[y : y + h, x : x + w]
-    padding = int(0.24 * h)
-
-    tresh_img = np.pad(tresh_img, pad_width=((padding, padding), (padding, padding)), constant_values=0)
-    gray = np.pad(gray, pad_width=((padding, padding), (padding, padding)), constant_values=255)
-
-    processed_img = cv2.resize(tresh_img, (28, 28), interpolation=cv2.INTER_AREA)
+    padding = int(0.34 * h)
+    gray = np.pad(gray, pad_width=((padding, padding), (padding, padding)), constant_values=0)
+    processed_img = cv2.resize(gray, (28, 28), interpolation=cv2.INTER_AREA)
 
     pred = st.session_state.model.predict([processed_img.ravel()])[0]
 
-    debug_img = np.hstack((gray, tresh_img))
-    st.image(tresh_img)
+    st.image(gray)
     st.subheader(f"Prediktion: {pred}")
 
     if hasattr(st.session_state.model, "predict_proba"):

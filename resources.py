@@ -23,9 +23,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
 os.chdir(os.path.dirname(__file__))
-
-images_uploaded = False
-true_labels_toggled = False
+plot_conf_matrix = False
 bg_img_url = "https://i.imgur.com/ctUckTP.png"
 css = f"""
         <style>
@@ -70,13 +68,28 @@ def load_model(path: Path):
     raise FileNotFoundError("Modellen kunde inte hittas på disk!")
 
 
+def true_label_assigner(images_uploaded, true_labels_processed):
+    if isinstance(true_labels_processed, dict):
+        for image in images_uploaded:
+            image.label = true_labels_processed.get(image.name)
+    else:
+        for image, label in zip(images_uploaded, true_labels_processed):
+            image.label = label
+
+
 @st.cache_data
-def label_processor(uploaded_labels: list[BytesIO]):
-    true_labels_processed = dict()
-    for text_file in uploaded_labels:
-        reader = DictReader(TextIOWrapper(text_file, encoding="utf-8"))
-        true_labels_processed.update({row["file"]: int(row["value"]) for row in reader})
-    return true_labels_processed
+def label_processor(labels: list[BytesIO] | str):
+    try:
+        if isinstance(labels, list):
+            true_labels_processed = dict()
+            for text_file in labels:
+                reader = DictReader(TextIOWrapper(text_file, encoding="utf-8"))
+                true_labels_processed.update({row["file"]: int(row["value"]) for row in reader})
+            return true_labels_processed
+        return [int(label) for label in labels.replace(" ", "").replace(",", "")]
+    except Exception:
+        st.sidebar.error("Ogiltigt format! Rensa och försök igen.")
+        st.stop()
 
 
 @st.cache_data
@@ -115,7 +128,7 @@ def display_confusion_matrix(true_labels, all_predictions, model_name=None):
     cm = confusion_matrix(true_labels, all_predictions, labels=np.arange(10))
     fig, _ = plt.subplots(figsize=(10, 8))
     sns.heatmap(cm, annot=True, cmap="viridis")
-    plt.title(f"Confusion Matrix{f' för {model_name}' if model_name else ''}")
+    plt.title(f"Confusion Matrix för {model_name or ''}")
     plt.ylabel("Sanna värden")
     plt.xlabel("Predikterade värden")
     plt.yticks(rotation=0)
