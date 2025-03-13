@@ -43,8 +43,8 @@ def predictor(images_uploaded: list[BytesIO]):
 
 
 def conf_matrix(images_uploaded):
-    all_predictions = [image.pred for image in images_uploaded if image.pred]
-    all_true_labels = [image.label for image in images_uploaded if image.label]
+    all_predictions = [image.pred for image in images_uploaded if image.pred is not None]
+    all_true_labels = [image.label for image in images_uploaded if image.label is not None]
     if len(all_predictions) == len(all_true_labels):
         score = accuracy_score(all_true_labels, all_predictions) * 100
         display_confusion_matrix(all_true_labels, all_predictions, st.session_state.model.__class__.__name__)
