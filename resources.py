@@ -14,15 +14,32 @@ import streamlit as st
 from matplotlib import pyplot as plt
 from sklearn.datasets import fetch_openml
 from sklearn.decomposition import PCA
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, GradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
 os.chdir(os.path.dirname(__file__))
+
+TARGET_SIZE = (28, 28)
+DEBUG_IMG_SIZE = (250, 160)
+PADDING_RATIO = 0.34
+KERNEL = np.ones((3, 3), np.uint8)
+
+
+mnist = fetch_openml("mnist_784", version=1, cache=True, as_frame=False)
+X = mnist["data"]
+y = mnist["target"].astype(np.uint8)
+
+X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=10000, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=10000, random_state=42)
+
+
 plot_conf_matrix = False
 bg_img_url = "https://i.imgur.com/ctUckTP.png"
 css = f"""
@@ -68,15 +85,6 @@ def load_model(path: Path):
     raise FileNotFoundError("Modellen kunde inte hittas på disk!")
 
 
-def true_label_assigner(images_uploaded, true_labels_processed):
-    if isinstance(true_labels_processed, dict):
-        for image in images_uploaded:
-            image.label = true_labels_processed.get(image.name)
-    else:
-        for image, label in zip(images_uploaded, true_labels_processed):
-            image.label = label
-
-
 @st.cache_data
 def label_processor(labels: list[BytesIO] | str):
     try:
@@ -94,29 +102,27 @@ def label_processor(labels: list[BytesIO] | str):
 
 @st.cache_data
 def process_image(uploaded_file: BytesIO):
-    TARGET_SIZE = (28, 28)
-    DEBUG_IMG_SIZE = (220, 160)
-    PADDING_RATIO = 0.34
     data = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
+    gray_img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     user_img = cv2.imdecode(data, cv2.IMREAD_COLOR_RGB)
-    _, thresh_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     white_pixel_ratio = np.sum(thresh_img == 255) / thresh_img.size
     if white_pixel_ratio > 0.5:
         thresh_img = 255 - thresh_img
 
-    height, width = thresh_img.shape
-    if abs(height - width) > 10:
-        contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    thresh_img = cv2.dilate(thresh_img, KERNEL, iterations=1)
+
+    contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
         largest_contour = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_contour)
         thresh_img = thresh_img[y : y + h, x : x + w]
         user_img = user_img[y : y + h, x : x + w]
-        padding = int(PADDING_RATIO * h)
 
-        thresh_img = np.pad(thresh_img, pad_width=((padding, padding), (padding, padding)), constant_values=0)
-        user_img = np.pad(user_img, pad_width=((padding, padding), (padding, padding), (0, 0)), constant_values=255)
+        padding_size = int(max(w, h) * PADDING_RATIO)
+        thresh_img = cv2.copyMakeBorder(thresh_img, padding_size, padding_size, padding_size, padding_size, cv2.BORDER_CONSTANT, value=0)
+        user_img = cv2.copyMakeBorder(user_img, padding_size, padding_size, padding_size, padding_size, cv2.BORDER_CONSTANT, value=[255, 255, 255])
 
     processed_img = cv2.resize(thresh_img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
     debug_img = np.hstack((user_img, cv2.cvtColor(thresh_img, cv2.COLOR_GRAY2BGR)))
@@ -133,18 +139,3 @@ def display_confusion_matrix(true_labels, all_predictions, model_name=None):
     plt.xlabel("Predikterade värden")
     plt.yticks(rotation=0)
     st.pyplot(fig)
-
-
-training_models = {
-    "RandomForestClassifier": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
-    "ExtraTreesClassifier": ExtraTreesClassifier(n_estimators=100, random_state=42, n_jobs=-1),
-    "PCA-SVC": make_pipeline(PCA(n_components=0.95), SVC(kernel="rbf", random_state=42)),
-    "STD-ETC": make_pipeline(StandardScaler(), ExtraTreesClassifier(n_estimators=200, n_jobs=-1)),
-    "PCA-KNN": make_pipeline(PCA(n_components=0.95), KNeighborsClassifier(n_neighbors=3, n_jobs=-1)),
-}
-mnist = fetch_openml("mnist_784", version=1, cache=True, as_frame=False)
-X = mnist["data"]
-y = mnist["target"].astype(np.uint8)
-
-X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=10000, random_state=42)
-X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=10000, random_state=42)
