@@ -56,7 +56,11 @@ css = f"""
         }}
         </style>
         """
-
+radio = """
+        <style>
+            div[class*="stRadio"] > label > div[data-testid="stMarkdownContainer"] > p {font-size: 19px;}
+        </style>
+        """
 no_label_error = """
                 <div style="
                 background-color: rgba(200, 0, 0, 0.4);
@@ -132,8 +136,8 @@ def process_image(uploaded_file: BytesIO):
 
 def display_confusion_matrix(true_labels, all_predictions, model_name=None):
     cm = confusion_matrix(true_labels, all_predictions, labels=np.arange(10))
-    fig, _ = plt.subplots(figsize=(10, 8))
-    sns.heatmap(cm, annot=True, cmap="viridis")
+    fig, _ = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", cmap="viridis")
     plt.title(f"Confusion Matrix för {model_name or ''}")
     plt.ylabel("Sanna värden")
     plt.xlabel("Predikterade värden")

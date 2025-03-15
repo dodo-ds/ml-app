@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import streamlit as st
-from resources import css, load_model
+from resources import css, load_model, radio
 
 if "models" not in st.session_state:
     st.session_state.models = [model for model in Path("resources/models").glob("*.*")]
@@ -11,6 +11,8 @@ st.set_page_config(page_title="DS24 ML", page_icon=":1234:")
 st.title("DS24 Machine Learning")
 
 st.markdown(css, unsafe_allow_html=True)
+
+st.markdown(radio, unsafe_allow_html=True)
 
 model_chosen = st.sidebar.radio("Välj Model:", st.session_state.models)
 

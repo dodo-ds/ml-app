@@ -1,4 +1,5 @@
 from resources import *
+from sklearn.metrics import classification_report
 
 if "model" not in st.session_state:
     st.session_state.model = None
@@ -10,7 +11,7 @@ if "training_models" not in st.session_state:
         "ExtraTreesClassifier": ExtraTreesClassifier(n_estimators=100, random_state=42, n_jobs=-1),
         "STD-ETC": make_pipeline(StandardScaler(), ExtraTreesClassifier(n_estimators=200, n_jobs=-1)),
         "PCA-KNN": make_pipeline(PCA(n_components=0.95), KNeighborsClassifier(n_neighbors=5, n_jobs=-1)),
-        "PCA-SVC-0.95-p": make_pipeline(PCA(n_components=0.95), SVC(kernel="rbf", random_state=42, probability=True)),
+        "PCA-SVC-0.95-can-proba": make_pipeline(PCA(n_components=0.95), SVC(kernel="rbf", random_state=42, probability=True)),
         "MLPClassifier": MLPClassifier(max_iter=1000),
     }
 
@@ -18,12 +19,11 @@ if "dragon_chosen" not in st.session_state:
     st.session_state.dragon_chosen = None
 
 
-st.session_state.dragon_chosen = st.sidebar.radio("Skapa Model:", st.session_state.training_models.keys())
+st.session_state.dragon_chosen = st.radio("Skapa Model:", st.session_state.training_models.keys(), horizontal=True)
 
-if st.session_state.dragon_chosen:
-    st.sidebar.write("Vald model:", st.session_state.dragon_chosen)
-
-validate_your_dragon = st.sidebar.button("Validera modellen")
+col, col_2, col_3, col_4 = st.columns(4)
+with col:
+    validate_your_dragon = st.button("Validera modellen")
 if validate_your_dragon:
     with st.spinner("### Validering pågår...", show_time=True):
         st.write(f"Model: {st.session_state.dragon_chosen}")
@@ -35,10 +35,12 @@ if validate_your_dragon:
         score = accuracy_score(y_val, y_pred) * 100
         st.subheader(f"Accuracy: {score:.2f}%")
         st.session_state.val_accuracy = score
+        with st.expander("Visa detaljerad rapport"):
+            st.dataframe(classification_report(y_val, y_pred, output_dict=True))
+            display_confusion_matrix(y_val, y_pred, st.session_state.dragon_chosen)
         st.success("Klart!")
-
-test_your_dragon = st.sidebar.button("Testa modellen")
-
+with col_2:
+    test_your_dragon = st.button("Testa modellen")
 if test_your_dragon:
     with st.spinner("### Test pågår...", show_time=True):
         if st.session_state.session_model:
@@ -54,8 +56,8 @@ if test_your_dragon:
         else:
             st.sidebar.write("Vänligen validera modellen först.")
 
-deploy_your_dragon = st.sidebar.button("Spara modellen i minnet")
-
+with col_3:
+    deploy_your_dragon = st.button("Spara modellen i minnet")
 if deploy_your_dragon:
     if st.session_state.session_model:
         with st.spinner("### Sparar modellen...", show_time=True):
@@ -65,9 +67,8 @@ if deploy_your_dragon:
     else:
         st.sidebar.write("Vänligen validera modellen först.")
 
-
-save_your_dragon = st.sidebar.button("Träna och spara modellen på disk")
-
+with col_4:
+    save_your_dragon = st.button("Träna och spara modellen på disk")
 if save_your_dragon:
     with st.spinner("### Sparar modellen på disk...", show_time=True):
         st.write(f"Model: {st.session_state.dragon_chosen}")
