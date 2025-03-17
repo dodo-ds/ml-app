@@ -21,7 +21,7 @@ def predictor(images_uploaded: list[BytesIO]):
             proba = max(st.session_state.model.predict_proba([processed_img.ravel()])[0]) * 100
 
         with columns[col_idx % 4]:
-            st.image(debug_img)
+            st.image(debug_img, use_container_width=True)
             st.markdown(
                 f"""
                 <div>

@@ -28,7 +28,6 @@ os.chdir(os.path.dirname(__file__))
 
 TARGET_SIZE = (28, 28)
 DEBUG_IMG_SIZE = (250, 160)
-PADDING_RATIO = 0.34
 KERNEL = np.ones((3, 3), np.uint8)
 
 
@@ -124,9 +123,12 @@ def process_image(uploaded_file: BytesIO):
         thresh_img = thresh_img[y : y + h, x : x + w]
         user_img = user_img[y : y + h, x : x + w]
 
-        padding_size = int(max(w, h) * PADDING_RATIO)
-        thresh_img = cv2.copyMakeBorder(thresh_img, padding_size, padding_size, padding_size, padding_size, cv2.BORDER_CONSTANT, value=0)
-        user_img = cv2.copyMakeBorder(user_img, padding_size, padding_size, padding_size, padding_size, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        r = max(w, h)
+        y_pad = ((w - h) // 2 if w > h else 0) + r // 5
+        x_pad = ((h - w) // 2 if h > w else 0) + r // 5
+
+        thresh_img = cv2.copyMakeBorder(thresh_img, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=0)
+        user_img = cv2.copyMakeBorder(user_img, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=[255, 255, 255])
 
     processed_img = cv2.resize(thresh_img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
     debug_img = np.hstack((user_img, cv2.cvtColor(thresh_img, cv2.COLOR_GRAY2BGR)))

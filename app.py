@@ -25,7 +25,7 @@ if model_chosen:
 st.sidebar.write("Aktiv:", st.session_state.model.__class__.__name__)
 
 pages = [
-    st.Page("predict.py", title="1. Ladda upp bilder och prediktera"),
+    st.Page("pictures.py", title="1. Ladda upp bilder och prediktera"),
     st.Page("draw.py", title="2. Rita och prediktera"),
     st.Page("webcam.py", title="3. Öppna kameran och prediktera i realtid"),
     st.Page("train_model.py", title="4. Träna modeller"),
