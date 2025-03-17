@@ -26,10 +26,6 @@ from sklearn.svm import SVC
 
 os.chdir(os.path.dirname(__file__))
 
-TARGET_SIZE = (28, 28)
-DEBUG_IMG_SIZE = (250, 160)
-KERNEL = np.ones((3, 3), np.uint8)
-
 
 mnist = fetch_openml("mnist_784", version=1, cache=True, as_frame=False)
 X = mnist["data"]
@@ -86,54 +82,6 @@ def load_model(path: Path):
             return joblib.load(path)
 
     raise FileNotFoundError("Modellen kunde inte hittas på disk!")
-
-
-@st.cache_data
-def label_processor(labels: list[BytesIO] | str):
-    try:
-        if isinstance(labels, list):
-            true_labels_processed = dict()
-            for text_file in labels:
-                reader = DictReader(TextIOWrapper(text_file, encoding="utf-8"))
-                true_labels_processed.update({row["file"]: int(row["value"]) for row in reader})
-            return true_labels_processed
-        return [int(label) for label in labels.replace(" ", "").replace(",", "")]
-    except Exception:
-        st.sidebar.error("Ogiltigt format! Rensa och försök igen.")
-        st.stop()
-
-
-@st.cache_data
-def process_image(uploaded_file: BytesIO):
-    data = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    gray_img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
-    user_img = cv2.imdecode(data, cv2.IMREAD_COLOR_RGB)
-    _, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    white_pixel_ratio = np.sum(thresh_img == 255) / thresh_img.size
-    if white_pixel_ratio > 0.5:
-        thresh_img = 255 - thresh_img
-
-    thresh_img = cv2.dilate(thresh_img, KERNEL, iterations=1)
-
-    contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-        largest_contour = max(contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        thresh_img = thresh_img[y : y + h, x : x + w]
-        user_img = user_img[y : y + h, x : x + w]
-
-        r = max(w, h)
-        y_pad = ((w - h) // 2 if w > h else 0) + r // 5
-        x_pad = ((h - w) // 2 if h > w else 0) + r // 5
-
-        thresh_img = cv2.copyMakeBorder(thresh_img, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=0)
-        user_img = cv2.copyMakeBorder(user_img, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=[255, 255, 255])
-
-    processed_img = cv2.resize(thresh_img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
-    debug_img = np.hstack((user_img, cv2.cvtColor(thresh_img, cv2.COLOR_GRAY2BGR)))
-    debug_img = cv2.resize(debug_img, DEBUG_IMG_SIZE, interpolation=cv2.INTER_AREA)
-    return processed_img, debug_img
 
 
 def display_confusion_matrix(true_labels, all_predictions, model_name=None):
