@@ -68,10 +68,12 @@ def predict_images(images_uploaded: list[BytesIO]):
             continue
 
         processed_img, debug_img = process_image(image)
-        image.pred = st.session_state.model.predict([processed_img.ravel()])[0]
-
         if can_proba := hasattr(st.session_state.model, "predict_proba"):
-            proba = max(st.session_state.model.predict_proba([processed_img.ravel()])[0]) * 100
+            probas = st.session_state.model.predict_proba([processed_img.ravel()])[0]
+            proba = max(probas) * 100
+            image.pred = np.argmax(probas)
+        else:
+            image.pred = st.session_state.model.predict([processed_img.ravel()])[0]
 
         with columns[col_idx % 4]:
             st.image(debug_img, use_container_width=True)
@@ -85,11 +87,11 @@ def predict_images(images_uploaded: list[BytesIO]):
                 unsafe_allow_html=True,
             )
         col_idx += 1
-    no_label_attached_count = len(images_uploaded) - image_count
+    has_no_label_attached_count = len(images_uploaded) - image_count
     image_count_container.write(
         f"""
         {image_count}{" instanser predikerade." if image_count > 1 else " instans predikerad."} \
-        {str(no_label_attached_count) + " borttagen." if no_label_attached_count else ""}
+        {str(has_no_label_attached_count) + " borttagen." if has_no_label_attached_count else ""}
         """
     )
     return images_uploaded
