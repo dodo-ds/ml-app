@@ -6,14 +6,26 @@ BLUR = (5, 5)
 FRAME_WINDOW = st.image([])
 THRESH_WINDOW = st.image([])
 MIN_AREA = 50
-CONF_THRESHOLD = 0.7
+CONF_THRESHOLD = 0.9
 
+if "start_camera" not in st.session_state:
+    st.session_state.start_camera = False
+
+
+def start_camera():
+    st.session_state.start_camera = True
+
+
+def stop_camera():
+    st.session_state.start_camera = False
+
+
+st.sidebar.button("Starta", on_click=start_camera, use_container_width=True)
+st.sidebar.button("Stoppa", on_click=stop_camera, use_container_width=True)
+can_proba = hasattr(st.session_state.model, "predict_proba") or st.error("Välj en model som kan beräkna sannolikheter.")
 
 camera = cv2.VideoCapture(0)
-
-run = st.button("Starta/Stoppa Kameran", use_container_width=True)
-can_proba = hasattr(st.session_state.model, "predict_proba") or st.error("Välj en model som kan beräkna sannolikheter.")
-while run and can_proba is True:
+while st.session_state.start_camera is True and can_proba is True:
     ret, frame = camera.read()
     if not ret:
         break
@@ -36,12 +48,9 @@ while run and can_proba is True:
             continue
 
         x, y, w, h = cv2.boundingRect(contour)
-        r = max(w, h)
-        y_pad = ((w - h) // 2 if w > h else 0) + r // 5
-        x_pad = ((h - w) // 2 if h > w else 0) + r // 5
-
+        padding = int(0.34 * max(w, h))
         roi = thresh[y : y + h, x : x + w]
-        roi = cv2.copyMakeBorder(roi, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=0)
+        roi = cv2.copyMakeBorder(roi, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=0)
         roi = cv2.resize(roi, (28, 28), interpolation=cv2.INTER_AREA)
 
         proba = st.session_state.model.predict_proba([roi.ravel()])[0]
